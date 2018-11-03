@@ -1,0 +1,48 @@
+import os
+
+from sagemaker.tensorflow import TensorFlow
+
+# (Option1) Run the training in Sagemaker
+# train_instance_type = 'ml.m5.large'
+# data_location = 's3://<s3_bucket_name>/kth_tfrecord'
+
+# (Option2) For local running config
+# train_instance_type = 'local'
+# data_location = 'file:///Users/dongfenggu/Desktop/tfrecord/'
+
+model_artifacts_location = 's3://<s3_bucket_name>/kth_result/artifacts'
+custom_code_upload_location = 's3://<s3_bucket_name>/kth_result/customcode/tensorflow_c3d'
+
+role = 'arn:aws:iam::<aws_account_id>:role/sagemaker-full-access-role'
+
+HYPERPARAMETERS = {
+    'batch_size': 20,
+    'width': 120,
+    'height': 100,
+    'channel': 3,
+    'num_frames_per_clip': 16,
+    'train_total_video_clip': 300000,
+    'eval_total_video_clip': 100000,
+    'moving_average_decay': 0.9999,
+    'initial_learning_rate': 1e-4,
+    'decay_step': 5000,
+    'num_class': 6,
+    'lr_decay_factor': 0.1
+}
+
+source_dir = os.path.join(os.getcwd(), 'source_dir')
+estimator = TensorFlow(
+    entry_point='c3d_estimator.py',
+    source_dir=source_dir,
+    role=role,
+    output_path=model_artifacts_location,
+    code_location=custom_code_upload_location,
+    train_instance_count=1,
+    train_volume_size=30,  # GB
+    framework_version='1.8.0',
+    train_instance_type=train_instance_type,
+    training_steps=1,
+    evaluation_steps=1,
+    hyperparameters=HYPERPARAMETERS)
+
+estimator.fit(data_location, run_tensorboard_locally=False)
